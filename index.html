@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Realm: Hero Progression & Custom Topic Quest</title>
+    <style>
+        :root {
+            --bg-dark: #080a14;
+            --panel-bg: #121526;
+            --panel-border: #252b48;
+            --primary: #7c5cff;
+            --primary-hover: #633eff;
+            --accent-gold: #ffb800;
+            --accent-cyan: #00f2fe;
+            --accent-pink: #ff4757;
+            --hp-green: #2ed573;
+            --hp-red: #ff4757;
+            --text-main: #f1f2f6;
+            --text-sub: #8e9bb0;
+            --rarity-common: #a4b0be;
+            --rarity-rare: #1e90ff;
+            --rarity-epic: #a29bfe;
+            --rarity-legendary: #ffbe76;
+            --rarity-mythic: #ff4757;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navbar */
+        .top-navbar {
+            background: rgba(18, 21, 38, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--panel-border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.25rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #a29bfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .player-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            background: #181c33;
+            border: 1px solid var(--panel-border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .stat-badge.gold { color: var(--accent-gold); border-color: rgba(255, 184, 0, 0.3); }
+        .stat-badge.keys { color: var(--accent-cyan); border-color: rgba(0, 242, 254, 0.3); }
+        .stat-badge.level { color: var(--primary); border-color: rgba(124, 92, 255, 0.3); }
+        .stat-badge.stage { color: var(--accent-pink); border-color: rgba(255, 71, 87, 0.3); }
+
+        /* Navigation Tabs */
+        .tab-bar {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            background: #0d0f1c;
+            padding: 8px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 4px 15px rgba(124, 92, 255, 0.4);
+        }
+
+        /* App Layout Container */
+        .app-container {
+            max-width: 1100px;
+            width: 100%;
+            margin: 20px auto;
+            padding: 0 20px;
+            flex-grow: 1;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* CHARACTER SELECTION OVERLAY */
+        .class-select-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 7, 15, 0.96);
+            backdrop-filter: blur(20px);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            max-width: 950px;
+            width: 100%;
+            margin-top: 30px;
+        }
+
+        .class-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .class-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 10px 30px rgba(0, 242, 254, 0.25);
+        }
+
+        .class-icon { font-size: 80px; margin-bottom: 12px; }
+        .class-title { font-size: 1.4rem; font-weight: 900; margin-bottom: 6px; }
+        .class-desc { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 16px; line-height: 1.4; }
+        .class-bonus {
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            background: rgba(255, 184, 0, 0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 184, 0, 0.2);
+        }
+
+        /* Battle Canvas Arena */
+        .battle-arena-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        .arena-canvas-container {
+            height: 320px;
+            background: radial-gradient(circle at center, #181d36 0%, #080a14 100%);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 30px 80px;
+        }
+
+        #fxCanvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .combatant {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            position: relative;
+        }
+
+        .sprite-wrapper {
+            font-size: 90px;
+            position: relative;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6));
+            transition: transform 0.2s;
+        }
+
+        .pet-companion {
+            position: absolute;
+            left: -55px;
+            bottom: 0;
+            font-size: 45px;
+            animation: floatPet 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes floatPet {
+            0% { transform: translateY(0px) rotate(-5deg); }
+            100% { transform: translateY(-12px) rotate(5deg); }
+        }
+
+        .weapon-hand {
+            position: absolute;
+            right: -25px;
+            bottom: 10px;
+            font-size: 38px;
+            transform: rotate(15deg);
+        }
+
+        .nametag {
+            font-weight: 800;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .title-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-pink));
+            color: #000;
+            border-radius: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .hp-bar-outer {
+            width: 150px;
+            height: 14px;
+            background: #0a0c16;
+            border: 2px solid #2a2f4d;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hp-bar-inner {
+            height: 100%;
+            width: 100%;
+            background: var(--hp-green);
+            transition: width 0.4s ease, background-color 0.3s;
+        }
+
+        .hp-text {
+            font-size: 0.75rem;
+            font-weight: 800;
+            margin-top: 4px;
+            color: var(--text-sub);
+        }
+
+        /* Controls Panel */
+        .controls-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .subject-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], input[type="password"] {
+            background: #090b14;
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(124, 92, 255, 0.4);
+        }
+
+        .btn:disabled {
+            background: #252b48;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .btn.secondary { background: #252b48; }
+        .btn.secondary:hover:not(:disabled) { background: #353d66; }
+
+        .btn.gold {
+            background: linear-gradient(135deg, #ffb800, #ff8c00);
+            color: #000;
+        }
+
+        .question-card {
+            background: #0a0c16;
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 80px;
+            font-size: 1.15rem;
+            line-height: 1.5;
+            font-weight: 600;
+        }
+
+        /* Spell Selection Bar */
+        .spell-selector-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-sub);
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .spells-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .spell-btn {
+            background: #181c33;
+            border: 2px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 10px;
+            color: #fff;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .spell-btn:hover {
+            border-color: var(--primary);
+            background: #202647;
+        }
+
+        .spell-btn.selected {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 242, 254, 0.15);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+        }
+
+        .spell-icon { font-size: 1.8rem; margin-bottom: 4px; }
+        .spell-name { font-size: 0.85rem; font-weight: 800; }
+        .spell-element { font-size: 0.7rem; color: var(--text-sub); }
+
+        /* Multiple Choice Options */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: #14172b;
+            border: 2px solid var(--panel-border);
+            color: #fff;
+            padding: 16px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background: #1c2242;
+        }
+
+        .option-key {
+            background: #252b48;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+        }
+
+        /* Tutor Drawer */
+        .socratic-box {
+            background: #181c33;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* LOOTBOX / CHEST VAULT */
+        .chest-vault-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .chest-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .chest-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-gold);
+        }
+
+        .chest-icon {
+            font-size: 80px;
+            margin: 15px 0;
+            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.5));
+            animation: bounceChest 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes bounceChest {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-8px); }
+        }
+
+        .chest-title { font-size: 1.25rem; font-weight: 800; margin-bottom: 6px; }
+        .chest-desc { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 20px; }
+        .chest-price {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Unboxing Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 7, 15, 0.95);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .unboxing-box {
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+        }
+
+        .unboxing-chest-anim {
+            font-size: 120px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .shake-anim {
+            animation: chestShake 0.5s ease-in-out infinite;
+        }
+
+        @keyframes chestShake {
+            0%, 100% { transform: rotate(0deg); }
+            20% { transform: rotate(-10deg) scale(1.1); }
+            40% { transform: rotate(10deg) scale(1.1); }
+            60% { transform: rotate(-10deg) scale(1.1); }
+            80% { transform: rotate(10deg) scale(1.1); }
+        }
+
+        .item-reveal-card {
+            background: var(--panel-bg);
+            border: 3px solid var(--rarity-legendary);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 0 50px rgba(255, 190, 118, 0.4);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: none;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .reveal-icon { font-size: 90px; margin-bottom: 15px; }
+        .reveal-title { font-size: 1.6rem; font-weight: 900; margin-bottom: 8px; }
+        .reveal-rarity {
+            text-transform: uppercase;
+            font-weight: 900;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+        .reveal-buff {
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        /* Wardrobe / Inventory */
+        .wardrobe-section {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .inventory-item-card {
+            background: #0b0d18;
+            border: 2px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .inventory-item-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .inventory-item-card.equipped {
+            border-color: var(--hp-green);
+            background: rgba(46, 213, 115, 0.1);
+        }
+
+        .inventory-item-card.equipped::after {
+            content: "EQUIPPED";
+            position: absolute;
+            top: 6px; right: 6px;
+            background: var(--hp-green);
+            color: #000;
+            font-size: 0.6rem;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .item-icon { font-size: 40px; margin-bottom: 6px; }
+        .item-name { font-size: 0.85rem; font-weight: 800; }
+        .item-buff-tag { font-size: 0.7rem; color: var(--accent-cyan); font-weight: 700; margin-top: 4px; }
+
+        /* Mandatory Burnout Break Overlay */
+        .break-screen-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #05070e;
+            color: #fff;
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .break-warning-banner {
+            background: rgba(255, 71, 87, 0.15);
+            border: 2px solid var(--accent-pink);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 650px;
+            margin: 20px 0;
+            box-shadow: 0 0 30px rgba(255, 71, 87, 0.2);
+        }
+
+        .break-warning-title {
+            color: var(--accent-pink);
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .break-timer-display {
+            font-size: 4.5rem;
+            font-weight: 900;
+            font-family: monospace;
+            color: var(--accent-cyan);
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+        }
+
+        .breathing-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-cyan), var(--primary));
+            margin: 20px auto;
+            animation: breathe 8s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.4); opacity: 1; }
+        }
+
+        /* Combat FX Animations */
+        .damage-popup {
+            position: absolute;
+            font-weight: 900;
+            font-size: 2.2rem;
+            color: var(--accent-pink);
+            animation: floatDamage 0.8s ease-out forwards;
+            pointer-events: none;
+            z-index: 50;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+        }
+
+        @keyframes floatDamage {
+            0% { opacity: 1; transform: translateY(0) scale(0.8); }
+            50% { transform: translateY(-30px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1); }
+        }
+
+        .hurt-shake {
+            animation: hurtShake 0.4s ease-in-out;
+            filter: drop-shadow(0 0 25px red) !important;
+        }
+
+        @keyframes hurtShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-15px); }
+            40% { transform: translateX(15px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        @media (max-width: 768px) {
+            .arena-canvas-container { padding: 20px; height: 260px; }
+            .sprite-wrapper { font-size: 65px; }
+            .options-grid { grid-template-columns: 1fr; }
+            .top-navbar { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- STARTING CLASS SELECTION OVERLAY -->
+    <div class="class-select-overlay" id="class-select-modal">
+        <h1 style="font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(135deg, #a29bfe, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Choose Your Hero Class</h1>
+        <p style="color: var(--text-sub); max-width: 500px;">Begin your active recall quest from scratch! Choose a class to define your starting stats, combat attacks, and weapons.</p>
+
+        <div class="class-grid">
+            <div class="class-card" onclick="selectStartingClass('wizard')">
+                <div class="class-icon">🧙‍♂️</div>
+                <div class="class-title">Wizard</div>
+                <div class="class-desc">Master of elemental spells and high burst magic damage.</div>
+                <div class="class-bonus">+25% Spell Damage</div>
+            </div>
+
+            <div class="class-card" onclick="selectStartingClass('knight')">
+                <div class="class-icon">⚔️</div>
+                <div class="class-title">Knight</div>
+                <div class="class-desc">Sturdy warrior with heavy shields and physical slashes.</div>
+                <div class="class-bonus">+50 Starting Max HP</div>
+            </div>
+
+            <div class="class-card" onclick="selectStartingClass('archer')">
+                <div class="class-icon">🏹</div>
+                <div class="class-title">Archer</div>
+                <div class="class-desc">Precision marksman using rapid arrows and critical strikes.</div>
+                <div class="class-bonus">+20% Critical DMG</div>
+            </div>
+
+            <div class="class-card" onclick="selectStartingClass('rogue')">
+                <div class="class-icon">🗡️</div>
+                <div class="class-title">Rogue</div>
+                <div class="class-desc">Swift assassin utilizing shadow strikes and gold plunder.</div>
+                <div class="class-bonus">+35% Gold Bonus</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="top-navbar">
+        <div class="brand">
+            <span id="nav-class-icon">🧙‍♂️</span> <span id="nav-class-name">Hero Realm</span>
+        </div>
+
+        <div class="player-status-bar">
+            <div class="stat-badge stage">
+                <span>🏰 Stage</span> <span id="ui-stage">1</span>
+            </div>
+            <div class="stat-badge level">
+                <span>LVL</span> <span id="ui-level">1</span>
+            </div>
+            <div class="stat-badge gold">
+                <span>🪙</span> <span id="ui-gold">0</span>
+            </div>
+            <div class="stat-badge keys">
+                <span>🗝️</span> <span id="ui-keys">0</span>
+            </div>
+            
+            <button class="btn secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="toggleAmbientSound()">🔊 Rain Audio</button>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('arena')">⚔️ Battle Arena</button>
+        <button class="tab-btn" onclick="switchTab('vault')">📦 Cosmetic Vault</button>
+        <button class="tab-btn" onclick="switchTab('wardrobe')">👗 Armory & Pets</button>
+        <button class="tab-btn" onclick="switchTab('settings')">⚙️ Settings & AI</button>
+    </nav>
+
+    <div class="app-container">
+
+        <!-- TAB 1: BATTLE ARENA -->
+        <div id="tab-arena" class="tab-content active">
+            
+            <div class="battle-arena-card">
+                <canvas id="fxCanvas"></canvas>
+                
+                <div class="arena-canvas-container">
+                    <!-- Player Hero -->
+                    <div class="combatant" id="hero-container">
+                        <div class="nametag">
+                            <span id="player-title" class="title-badge">NOVICE</span>
+                            <span id="player-name">Hero</span>
+                        </div>
+                        <div class="sprite-wrapper" id="hero-sprite">
+                            <span id="hero-skin-icon">🧙‍♂️</span>
+                            <div class="weapon-hand" id="weapon-sprite">🪄</div>
+                            <div class="pet-companion" id="pet-sprite" style="display:none;"></div>
+                        </div>
+                        <div class="hp-bar-outer">
+                            <div class="hp-bar-inner" id="hero-hp-bar"></div>
+                        </div>
+                        <div class="hp-text" id="hero-hp-text">100 / 100 HP</div>
+                    </div>
+
+                    <!-- Stage Monster -->
+                    <div class="combatant" id="monster-container">
+                        <div class="nametag" id="monster-name">Goblin Scout</div>
+                        <div class="sprite-wrapper" id="monster-sprite">👺</div>
+                        <div class="hp-bar-outer">
+                            <div class="hp-bar-inner" id="monster-hp-bar"></div>
+                        </div>
+                        <div class="hp-text" id="monster-hp-text">80 / 80 HP</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-card">
+                <!-- Subject / Topic Search Bar -->
+                <div class="subject-bar">
+                    <input type="text" id="subject-input" placeholder="Type ANY study topic (e.g. AP Psych, French, World History, Organic Chem)..." style="flex-grow: 1;">
+                    <button class="btn gold" onclick="startNewBattle()">Summon Monster ⚔️</button>
+                </div>
+
+                <!-- Active Question Box -->
+                <div class="question-card" id="question-text">
+                    Choose a class and enter <strong>any study topic</strong> above to begin your active recall battle!
+                </div>
+
+                <!-- Class Attack Selection Quickbar -->
+                <div class="spell-selector-title">Select Attack Move:</div>
+                <div class="spells-grid" id="spells-grid">
+                    <!-- Dynamic class attacks -->
+                </div>
+
+                <!-- Answer Choices -->
+                <div class="options-grid" id="options-container">
+                    <!-- Dynamic Option Buttons -->
+                </div>
+
+                <!-- Socratic AI Tutor -->
+                <div class="socratic-box" id="socratic-drawer">
+                    <strong>💡 Gemini Socratic Tutor:</strong>
+                    <div id="socratic-text" style="margin-top: 6px;"></div>
+                    <button class="btn secondary" style="margin-top: 10px; font-size: 0.8rem; padding: 6px 12px;" onclick="askFeynmanELI5()">Explain Like I'm 5 (Analogy)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: COSMETIC VAULT -->
+        <div id="tab-vault" class="tab-content">
+            <h2 style="margin-bottom: 6px;">📦 Cosmetic Mystery Vault</h2>
+            <p style="color: var(--text-sub); margin-bottom: 20px;">Hatch rare pets and unlock legendary outfits with gold earned from studying!</p>
+
+            <div class="chest-vault-grid">
+                <div class="chest-card">
+                    <div class="chest-icon">📦</div>
+                    <div class="chest-title">Novice Relic</div>
+                    <div class="chest-desc">Contains starter outfits, weapons, and title upgrades.</div>
+                    <div class="chest-price">🪙 80 Gold</div>
+                    <button class="btn gold" onclick="buyChest('novice', 80)">Open Relic</button>
+                </div>
+
+                <div class="chest-card">
+                    <div class="chest-icon">🔮</div>
+                    <div class="chest-title">Arcane Chest</div>
+                    <div class="chest-desc">High chance for Epic & Legendary Class Weapons and Skins.</div>
+                    <div class="chest-price">🪙 200 Gold</div>
+                    <button class="btn gold" onclick="buyChest('arcane', 200)">Open Chest</button>
+                </div>
+
+                <div class="chest-card">
+                    <div class="chest-icon">🥚</div>
+                    <div class="chest-title">Mythic Pet Egg</div>
+                    <div class="chest-desc">Hatch pet companions that grant permanent stat buffs and combat lifesteal!</div>
+                    <div class="chest-price">🗝️ 2 Arcane Keys</div>
+                    <button class="btn" style="background: var(--accent-cyan); color:#000;" onclick="buyChestKey('pet', 2)">Hatch Egg</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: ARMORY & PETS -->
+        <div id="tab-wardrobe" class="tab-content">
+            <h2>👗 Hero Armory & Pets</h2>
+            <p style="color: var(--text-sub); margin-bottom: 20px;">Equip unlocked items to gain dynamic stat bonuses and change your battle appearance.</p>
+
+            <div class="wardrobe-section">
+                <h3>Pet Companions (Stat Buffs)</h3>
+                <div class="items-grid" id="pets-grid"></div>
+            </div>
+
+            <div class="wardrobe-section">
+                <h3>Weapons & Wands</h3>
+                <div class="items-grid" id="weapons-grid"></div>
+            </div>
+
+            <div class="wardrobe-section">
+                <h3>Outfits / Skins</h3>
+                <div class="items-grid" id="skins-grid"></div>
+            </div>
+        </div>
+
+        <!-- TAB 4: SETTINGS & API -->
+        <div id="tab-settings" class="tab-content">
+            <h2>⚙️ Game & AI Settings</h2>
+            <div class="controls-card">
+                <h3>Google Gemini API Key</h3>
+                <p style="color: var(--text-sub); font-size: 0.9rem;">
+                    Enter your Gemini API key to enable infinite custom AI questions for any topic.
+                </p>
+                <input type="password" id="api-key-input" placeholder="Paste Gemini API Key here..." style="width: 100%; max-width: 500px; margin-bottom: 15px;">
+                <br>
+                <button class="btn" onclick="saveApiKey()">Save Key</button>
+
+                <hr style="border-color: var(--panel-border); margin: 30px 0;">
+
+                <h3>Burnout Sanctuary Timer</h3>
+                <p style="color: var(--text-sub); font-size: 0.9rem;">Test the mandatory hourly rest break.</p>
+                <button class="btn secondary" onclick="toggleDemoTimer()">Toggle Demo Mode (30s study / 10s break)</button>
+                <span id="demo-status" style="margin-left: 10px; font-weight: 800; color: var(--accent-gold);">Demo Off</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- UNBOXING MODAL -->
+    <div class="modal-overlay" id="unboxing-modal">
+        <div class="unboxing-box">
+            <div class="unboxing-chest-anim" id="modal-chest-icon">📦</div>
+            
+            <div class="item-reveal-card" id="reveal-card">
+                <div class="reveal-icon" id="reveal-icon">🐉</div>
+                <div class="reveal-rarity" id="reveal-rarity" style="color: var(--rarity-legendary);">LEGENDARY</div>
+                <div class="reveal-title" id="reveal-title">Flame Dragon</div>
+                <div class="reveal-buff" id="reveal-buff">+25% Spell Damage</div>
+                <button class="btn gold" style="margin-top: 15px;" onclick="closeUnboxingModal()">Equip / Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLAIN MONSTER REWARD MODAL -->
+    <div class="modal-overlay" id="victory-modal">
+        <div class="unboxing-box" style="background: var(--panel-bg); padding: 30px; border-radius: 20px; border: 2px solid var(--accent-gold);">
+            <div style="font-size: 80px; margin-bottom: 10px;">🏆</div>
+            <h2 style="color: var(--accent-gold); font-size: 2rem; margin-bottom: 6px;">MONSTER SLAIN!</h2>
+            <p style="color: var(--text-sub); margin-bottom: 20px;">You defeated the stage target with active recall precision!</p>
+
+            <div style="display: flex; justify-content: center; gap: 20px; font-weight: 900; font-size: 1.2rem; margin-bottom: 25px;">
+                <span style="color: var(--accent-gold);">+50 🪙 Gold</span>
+                <span style="color: var(--accent-cyan);">+60 XP</span>
+            </div>
+
+            <button class="btn gold" style="width: 100%;" onclick="dismissVictoryModal()">Next Monster ⚔️</button>
+        </div>
+    </div>
+
+    <!-- MANDATORY BURNOUT REST OVERLAY -->
+    <div class="break-screen-overlay" id="break-overlay">
+        <h1>🧘 Mandatory Sanctuary Rest</h1>
+        <p>You have been studying hard for an hour! Rest is required to consolidate long-term memory.</p>
+
+        <div class="break-warning-banner">
+            <div class="break-warning-title">⚠️ DO NOT GO ON A DEVICE AND START SCROLLING!</div>
+            <div>Get up, walk around your room, stretch your shoulders, drink water, and rest your eyes. Doomscrolling destroys memory retention!</div>
+        </div>
+
+        <div class="breathing-circle"></div>
+        <div class="break-timer-display" id="break-timer-clock">10:00</div>
+        <button class="btn gold" id="resume-quest-btn" style="display:none;" onclick="endMandatoryBreak()">Resume Quest ⚔️</button>
+    </div>
+
+    <script>
+        /* ================= CLASS DEFINITIONS & GAME STATE ================= */
+        const CLASSES = {
+            wizard: {
+                name: "Wizard", icon: "🧙‍♂️", weapon: "🪄",
+                bonus: "Magic Boost",
+                spells: [
+                    { name: "Fireball", icon: "🔥", dmg: 35, type: "Fire" },
+                    { name: "Frost Nova", icon: "❄️", dmg: 30, type: "Ice" },
+                    { name: "Arcane Burst", icon: "⚡", dmg: 40, type: "Arcane" },
+                    { name: "Divine Heal", icon: "💚", heal: 25, type: "Holy" }
+                ]
+            },
+            knight: {
+                name: "Knight", icon: "⚔️", weapon: "🗡️",
+                bonus: "+50 Max HP",
+                spells: [
+                    { name: "Sword Slash", icon: "⚔️", dmg: 35, type: "Physical" },
+                    { name: "Shield Bash", icon: "🛡️", dmg: 28, type: "Physical" },
+                    { name: "Holy Smite", icon: "✨", dmg: 42, type: "Holy" },
+                    { name: "Iron Will", icon: "🛡️", heal: 25, type: "Defense" }
+                ]
+            },
+            archer: {
+                name: "Archer", icon: "🏹", weapon: "🏹",
+                bonus: "+20% Crit Chance",
+                spells: [
+                    { name: "Power Shot", icon: "🎯", dmg: 38, type: "Physical" },
+                    { name: "Arrow Rain", icon: "🌧️", dmg: 32, type: "Physical" },
+                    { name: "Poison Arrow", icon: "🧪", dmg: 44, type: "Poison" },
+                    { name: "Focus Bandage", icon: "🩹", heal: 25, type: "Heal" }
+                ]
+            },
+            rogue: {
+                name: "Rogue", icon: "🗡️", weapon: "🗡️",
+                bonus: "+35% Gold Bonus",
+                spells: [
+                    { name: "Shadow Strike", icon: "👤", dmg: 40, type: "Shadow" },
+                    { name: "Poison Dagger", icon: "🧪", dmg: 32, type: "Poison" },
+                    { name: "Backstab", icon: "🔪", dmg: 45, type: "Physical" },
+                    { name: "Smoke Screen", icon: "💨", heal: 25, type: "Evasion" }
+                ]
+            }
+        };
+
+        const COSMETIC_DATABASE = {
+            pets: [
+                { id: "🐉", name: "Flame Dragon", rarity: "legendary", icon: "🐉", buff: "+25% Damage", stat: "dmg", val: 1.25 },
+                { id: "🦅", name: "Arcane Eagle", rarity: "rare", icon: "🦅", buff: "+30% XP Gain", stat: "xp", val: 1.3 },
+                { id: "🤖", name: "Cyber Bot", rarity: "epic", icon: "🤖", buff: "+50 Max HP", stat: "hp", val: 50 },
+                { id: "👾", name: "Cosmic Axolotl", rarity: "mythic", icon: "👾", buff: "+35% Gold & Lifesteal", stat: "lifesteal", val: 10 }
+            ],
+            weapons: [
+                { id: "🪄", name: "Apprentice Wand", rarity: "common", icon: "🪄", buff: "Standard Weapon" },
+                { id: "🗡️", name: "Steel Sword", rarity: "common", icon: "🗡️", buff: "+5 DMG" },
+                { id: "🏹", name: "Longbow", rarity: "common", icon: "🏹", buff: "+5 DMG" },
+                { id: "🔮", name: "Crystal Orb", rarity: "epic", icon: "🔮", buff: "+15 DMG" },
+                { id: "⚡", name: "Lightning Rod", rarity: "legendary", icon: "⚡", buff: "+25 DMG" }
+            ],
+            skins: [
+                { id: "🧙‍♂️", name: "Classic Apprentice", rarity: "common", icon: "🧙‍♂️" },
+                { id: "🧙‍♀️", name: "Arcane Sorceress", rarity: "rare", icon: "🧙‍♀️" },
+                { id: "🥷", name: "Shadow Reaper", rarity: "epic", icon: "🥷" },
+                { id: "👑", name: "Emperor Sorcerer", rarity: "mythic", icon: "👑" }
+            ]
+        };
+
+        const STAGE_MONSTERS = [
+            { name: "Goblin Scout", sprite: "👺", hp: 80, atk: 12 },
+            { name: "Shadow Wolf", sprite: "🐺", hp: 110, atk: 15 },
+            { name: "Stone Golem", sprite: "🗿", hp: 150, atk: 18 },
+            { name: "Frost Wraith", sprite: "👻", hp: 180, atk: 22 },
+            { name: "Infernal Dragon (BOSS)", sprite: "🐲", hp: 250, atk: 28 }
+        ];
+
+        const state = {
+            heroClass: "wizard",
+            gold: 0,
+            keys: 0,
+            level: 1,
+            xp: 0,
+            stage: 1,
+            heroHP: 100,
+            maxHeroHP: 100,
+            monsterHP: 80,
+            maxMonsterHP: 80,
+            selectedSpellIdx: 0,
+            currentSubject: "AP Psych",
+            currentQuestion: null,
+            apiKey: "",
+            demoMode: false,
+            studyTimeSeconds: 0,
+            equippedSkin: "🧙‍♂️",
+            equippedWeapon: "🪄",
+            equippedPet: null, // STARTS WITH NO PET
+            unlockedSkins: ["🧙‍♂️"],
+            unlockedWeapons: ["🪄"],
+            unlockedPets: []
+        };
+
+        /* ================= AUDIO ENGINE ================= */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let ambientOsc = null;
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'cast') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(750, now + 0.25);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now); osc.stop(now + 0.25);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'fanfare') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.setValueAtTime(659, now + 0.15);
+                osc.frequency.setValueAtTime(783, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
+            }
+        }
+
+        function toggleAmbientSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (ambientOsc) { ambientOsc.stop(); ambientOsc = null; return; }
+            ambientOsc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            ambientOsc.type = 'sine';
+            ambientOsc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+            ambientOsc.connect(gain);
+            gain.connect(audioCtx.destination);
+            ambientOsc.start();
+        }
+
+        /* ================= HERO SELECTION ================= */
+        function selectStartingClass(className) {
+            state.heroClass = className;
+            const cls = CLASSES[className];
+
+            document.getElementById('nav-class-icon').innerText = cls.icon;
+            document.getElementById('nav-class-name').innerText = `${cls.name} Realm`;
+            document.getElementById('hero-skin-icon').innerText = cls.icon;
+            document.getElementById('weapon-sprite').innerText = cls.weapon;
+
+            state.equippedSkin = cls.icon;
+            state.equippedWeapon = cls.weapon;
+            if (!state.unlockedSkins.includes(cls.icon)) state.unlockedSkins.push(cls.icon);
+            if (!state.unlockedWeapons.includes(cls.weapon)) state.unlockedWeapons.push(cls.weapon);
+
+            if (className === 'knight') state.maxHeroHP = 150;
+            state.heroHP = state.maxHeroHP;
+
+            renderClassSpells();
+            document.getElementById('class-select-modal').style.display = 'none';
+            updateUIStatus();
+            renderWardrobe();
+        }
+
+        function renderClassSpells() {
+            const grid = document.getElementById('spells-grid');
+            grid.innerHTML = "";
+            const spells = CLASSES[state.heroClass].spells;
+
+            spells.forEach((s, idx) => {
+                const btn = document.createElement('div');
+                btn.className = `spell-btn ${idx === state.selectedSpellIdx ? 'selected' : ''}`;
+                btn.onclick = () => {
+                    state.selectedSpellIdx = idx;
+                    document.querySelectorAll('.spell-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                btn.innerHTML = `
+                    <div class="spell-icon">${s.icon}</div>
+                    <div class="spell-name">${s.name}</div>
+                    <div class="spell-element">${s.heal ? '+' + s.heal + ' HP' : s.dmg + ' DMG'}</div>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        /* ================= UNIVERSAL TOPIC QUESTION ENGINE ================= */
+        async function fetchAIQuestion(subject) {
+            if (!subject) subject = "General Knowledge";
+
+            if (state.apiKey) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.apiKey}`;
+                const prompt = `Generate 1 high-yield multiple choice active recall study question for topic: "${subject}".
+                Return raw JSON strictly:
+                {
+                    "q": "Question text here",
+                    "options": ["Option A", "Option B", "Option C", "Option D"],
+                    "answer": "Exact text of correct option",
+                    "hint": "Socratic hint"
+                }`;
+
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    const data = await res.json();
+                    let clean = data.candidates[0].content.parts[0].text.trim();
+                    if (clean.startsWith('```json')) clean = clean.slice(7);
+                    if (clean.startsWith('```')) clean = clean.slice(3);
+                    if (clean.endsWith('```')) clean = clean.slice(0, -3);
+                    return JSON.parse(clean.trim());
+                } catch (e) { console.error("Gemini AI error, using fallback procedural generator.", e); }
+            }
+
+            // Universal Procedural Fallback Engine for ANY user-entered topic string
+            return {
+                q: `What is a core fundamental principle when analyzing or studying "${subject}"?`,
+                options: [
+                    `Active recall & conceptual retrieval of ${subject} principles`,
+                    `Passively reading summaries without self-testing`,
+                    `Memorizing random key terms without understanding context`,
+                    `Ignoring core terminology in ${subject}`
+                ],
+                answer: `Active recall & conceptual retrieval of ${subject} principles`,
+                hint: `Retrieving key ideas from memory without looking at notes builds strong neural connections for ${subject}.`
+            };
+        }
+
+        async function startNewBattle() {
+            const inputVal = document.getElementById('subject-input').value.trim();
+            if (inputVal) state.currentSubject = inputVal;
+
+            document.getElementById('question-text').innerText = `🔮 Summoning stage monster for topic: "${state.currentSubject}"...`;
+            document.getElementById('options-container').innerHTML = "";
+            document.getElementById('socratic-drawer').style.display = "none";
+
+            state.currentQuestion = await fetchAIQuestion(state.currentSubject);
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = state.currentQuestion;
+            document.getElementById('question-text').innerText = q.q;
+            const container = document.getElementById('options-container');
+            container.innerHTML = "";
+
+            const keys = ["A", "B", "C", "D"];
+            let shuffled = [...q.options].sort(() => Math.random() - 0.5);
+
+            shuffled.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn";
+                btn.innerHTML = `<span class="option-key">${keys[idx]}</span> <span>${opt}</span>`;
+                btn.onclick = () => submitAnswer(opt, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        /* ================= BATTLE & DAMAGE LOGIC ================= */
+        function submitAnswer(selectedOpt, btnElement) {
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            if (selectedOpt === state.currentQuestion.answer) {
+                btnElement.style.borderColor = "var(--hp-green)";
+                btnElement.style.background = "rgba(46, 213, 115, 0.2)";
+                
+                playSound('cast');
+                spawnFX();
+
+                setTimeout(() => {
+                    playSound('hit');
+
+                    // Compute Damage with Pet & Class Buffs
+                    const move = CLASSES[state.heroClass].spells[state.selectedSpellIdx];
+                    let rawDmg = move.dmg || 35;
+                    
+                    if (state.equippedPet === "🐉") rawDmg *= 1.25; // Flame Dragon Buff
+                    
+                    const finalDmg = Math.round(rawDmg);
+                    spawnDamageText('monster-container', `-${finalDmg} DMG`);
+                    state.monsterHP = Math.max(0, state.monsterHP - finalDmg);
+
+                    // Lifesteal Pet check
+                    if (state.equippedPet === "👾") {
+                        state.heroHP = Math.min(state.maxHeroHP, state.heroHP + 10);
+                    }
+
+                    updateHPDisplay();
+
+                    if (state.monsterHP <= 0) {
+                        triggerMonsterDefeatSequence();
+                    } else {
+                        setTimeout(() => startNewBattle(), 1200);
+                    }
+                }, 600);
+
+            } else {
+                btnElement.style.borderColor = "var(--hp-red)";
+                btnElement.style.background = "rgba(255, 71, 87, 0.2)";
+
+                document.getElementById('socratic-drawer').style.display = "block";
+                document.getElementById('socratic-text').innerText = state.currentQuestion.hint;
+
+                // Monster Attack
+                setTimeout(() => {
+                    playSound('hit');
+                    document.getElementById('hero-sprite').classList.add('hurt-shake');
+                    const monsterAtk = STAGE_MONSTERS[(state.stage - 1) % STAGE_MONSTERS.length].atk;
+                    spawnDamageText('hero-container', `-${monsterAtk} DMG`);
+                    state.heroHP = Math.max(0, state.heroHP - monsterAtk);
+                    updateHPDisplay();
+
+                    setTimeout(() => {
+                        document.getElementById('hero-sprite').classList.remove('hurt-shake');
+                        allBtns.forEach(b => b.disabled = false);
+                    }, 500);
+                }, 600);
+            }
+        }
+
+        function triggerMonsterDefeatSequence() {
+            playSound('fanfare');
+            document.getElementById('monster-sprite').innerText = "💀";
+
+            // Rewards
+            let goldReward = 50;
+            if (state.heroClass === 'rogue') goldReward = Math.round(goldReward * 1.35);
+            state.gold += goldReward;
+            state.xp += 60;
+
+            if (state.xp >= 100) {
+                state.level++;
+                state.xp -= 100;
+                state.keys += 1;
+            }
+
+            updateUIStatus();
+            document.getElementById('victory-modal').style.display = 'flex';
+        }
+
+        function dismissVictoryModal() {
+            document.getElementById('victory-modal').style.display = 'none';
+            state.stage++;
+            
+            // Spawn next stage monster
+            const mData = STAGE_MONSTERS[(state.stage - 1) % STAGE_MONSTERS.length];
+            document.getElementById('monster-name').innerText = mData.name;
+            document.getElementById('monster-sprite').innerText = mData.sprite;
+            state.monsterHP = mData.hp;
+            state.maxMonsterHP = mData.hp;
+
+            updateHPDisplay();
+            updateUIStatus();
+            startNewBattle();
+        }
+
+        function askFeynmanELI5() {
+            document.getElementById('socratic-text').innerText += "\n\n👶 ELI5 Analogy: Imagine this concept like building with LEGOs—retrieving memory is clicking the right bricks together so the structure stays permanent!";
+        }
+
+        /* ================= VAULT & LOOTBOX SYSTEM ================= */
+        function buyChest(type, cost) {
+            if (state.gold < cost) return alert("Not enough gold! Answer study questions correctly to earn gold.");
+            state.gold -= cost;
+            updateUIStatus();
+            openLootbox('gear');
+        }
+
+        function buyChestKey(type, keyCost) {
+            if (state.keys < keyCost) return alert("Not enough Arcane Keys! Level up your hero to earn keys.");
+            state.keys -= keyCost;
+            updateUIStatus();
+            openLootbox('pet');
+        }
+
+        function openLootbox(category) {
+            const modal = document.getElementById('unboxing-modal');
+            const chestIcon = document.getElementById('modal-chest-icon');
+            const revealCard = document.getElementById('reveal-card');
+
+            modal.style.display = 'flex';
+            revealCard.style.display = 'none';
+            chestIcon.classList.add('shake-anim');
+
+            setTimeout(() => {
+                chestIcon.classList.remove('shake-anim');
+                playSound('fanfare');
+
+                let rolledItem;
+                if (category === 'pet') {
+                    rolledItem = COSMETIC_DATABASE.pets[Math.floor(Math.random() * COSMETIC_DATABASE.pets.length)];
+                    if (!state.unlockedPets.includes(rolledItem.id)) state.unlockedPets.push(rolledItem.id);
+                } else {
+                    rolledItem = COSMETIC_DATABASE.weapons[Math.floor(Math.random() * COSMETIC_DATABASE.weapons.length)];
+                    if (!state.unlockedWeapons.includes(rolledItem.id)) state.unlockedWeapons.push(rolledItem.id);
+                }
+
+                document.getElementById('reveal-icon').innerText = rolledItem.icon;
+                document.getElementById('reveal-title').innerText = rolledItem.name;
+                document.getElementById('reveal-rarity').innerText = rolledItem.rarity;
+                document.getElementById('reveal-buff').innerText = rolledItem.buff || "";
+
+                revealCard.style.display = 'block';
+                renderWardrobe();
+            }, 1200);
+        }
+
+        function closeUnboxingModal() {
+            document.getElementById('unboxing-modal').style.display = 'none';
+        }
+
+        function renderWardrobe() {
+            // Pets
+            const petsGrid = document.getElementById('pets-grid');
+            petsGrid.innerHTML = "";
+            COSMETIC_DATABASE.pets.forEach(item => {
+                const owned = state.unlockedPets.includes(item.id);
+                const isEquipped = state.equippedPet === item.id;
+                const card = document.createElement('div');
+                card.className = `inventory-item-card ${isEquipped ? 'equipped' : ''}`;
+                card.style.opacity = owned ? '1' : '0.35';
+                card.innerHTML = `<div class="item-icon">${item.icon}</div><div class="item-name">${item.name}</div><div class="item-buff-tag">${item.buff}</div>`;
+                if (owned) card.onclick = () => { state.equippedPet = item.id; updateEquippedLook(); renderWardrobe(); };
+                petsGrid.appendChild(card);
+            });
+
+            // Weapons
+            const weaponsGrid = document.getElementById('weapons-grid');
+            weaponsGrid.innerHTML = "";
+            COSMETIC_DATABASE.weapons.forEach(item => {
+                const owned = state.unlockedWeapons.includes(item.id);
+                const isEquipped = state.equippedWeapon === item.id;
+                const card = document.createElement('div');
+                card.className = `inventory-item-card ${isEquipped ? 'equipped' : ''}`;
+                card.style.opacity = owned ? '1' : '0.35';
+                card.innerHTML = `<div class="item-icon">${item.icon}</div><div class="item-name">${item.name}</div><div class="item-buff-tag">${item.buff}</div>`;
+                if (owned) card.onclick = () => { state.equippedWeapon = item.id; updateEquippedLook(); renderWardrobe(); };
+                weaponsGrid.appendChild(card);
+            });
+
+            // Skins
+            const skinsGrid = document.getElementById('skins-grid');
+            skinsGrid.innerHTML = "";
+            COSMETIC_DATABASE.skins.forEach(item => {
+                const owned = state.unlockedSkins.includes(item.id);
+                const isEquipped = state.equippedSkin === item.id;
+                const card = document.createElement('div');
+                card.className = `inventory-item-card ${isEquipped ? 'equipped' : ''}`;
+                card.style.opacity = owned ? '1' : '0.35';
+                card.innerHTML = `<div class="item-icon">${item.icon}</div><div class="item-name">${item.name}</div>`;
+                if (owned) card.onclick = () => { state.equippedSkin = item.id; updateEquippedLook(); renderWardrobe(); };
+                skinsGrid.appendChild(card);
+            });
+        }
+
+        function updateEquippedLook() {
+            document.getElementById('hero-skin-icon').innerText = state.equippedSkin;
+            document.getElementById('weapon-sprite').innerText = state.equippedWeapon;
+            
+            const petEl = document.getElementById('pet-sprite');
+            if (state.equippedPet) {
+                petEl.style.display = 'block';
+                petEl.innerText = state.equippedPet;
+            } else {
+                petEl.style.display = 'none';
+            }
+        }
+
+        /* ================= BURNOUT PROTECTION ================= */
+        setInterval(() => {
+            state.studyTimeSeconds++;
+            const limit = state.demoMode ? 30 : 3600;
+            if (state.studyTimeSeconds >= limit) {
+                triggerMandatoryBreak();
+                state.studyTimeSeconds = 0;
+            }
+        }, 1000);
+
+        function triggerMandatoryBreak() {
+            document.getElementById('break-overlay').style.display = 'flex';
+            let timeLeft = state.demoMode ? 10 : 600;
+            const timerEl = document.getElementById('break-timer-clock');
+            const btn = document.getElementById('resume-quest-btn');
+            btn.style.display = 'none';
+
+            const count = setInterval(() => {
+                timeLeft--;
+                let m = Math.floor(timeLeft / 60);
+                let s = timeLeft % 60;
+                timerEl.innerText = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(count);
+                    btn.style.display = 'inline-block';
+                }
+            }, 1000);
